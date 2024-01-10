@@ -1,0 +1,36 @@
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+"
+
+name: "Beta Tag"
+
+jobs:
+  release:
+    name: "Release"
+
+    uses: ./.github/workflows/part_release.yml
+    with:
+      releaseName: "${{ github.ref_name }}"
+
+  docs:
+    name: "Docs"
+
+    needs: ["release"]
+
+    uses: ./.github/workflows/part_docs.yml
+    with:
+      releaseName: "${{ github.ref_name }}"
+
+  publish:
+    name: "Publish"
+
+    needs: ["release"]
+
+    uses: ./.github/workflows/part_publish.yml
+    with:
+      releaseName: "${{ github.ref_name }}"
+    secrets:
+      HEX_API_KEY: "${{ secrets.HEX_API_KEY }}"

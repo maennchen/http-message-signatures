@@ -1,0 +1,14 @@
+{application, http_message_signatures, [
+    {description, "An OTP library"},
+    {vsn, "0.0.0-dev"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib
+    ]},
+    {env, []},
+    {modules, []},
+
+    {licenses, ["Apache-2.0"]},
+    {links, []}
+]}.

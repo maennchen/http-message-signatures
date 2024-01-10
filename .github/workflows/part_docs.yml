@@ -1,0 +1,61 @@
+on:
+  workflow_call:
+    inputs:
+      releaseName:
+        required: false
+        type: string
+
+name: "Documentation"
+
+jobs:
+  generate:
+    name: "Generate"
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        id: setupBEAM
+        with:
+          version-file: .tool-versions
+          version-type: strict
+      - uses: actions/cache@v3
+        with:
+          path: _build
+          key: docs-build-${{ runner.os }}-${{ steps.setupBEAM.outputs.otp-version }}-${{ hashFiles('rebar.config') }}
+          restore-keys: |
+            docs-build-{{ runner.os }}-${{ steps.setupBEAM.outputs.otp-version }}-
+      - run: rebar3 deps-get
+      - run: rebar3 ex_doc
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docs
+          path: doc
+
+  upload:
+    name: "Upload"
+
+    runs-on: ubuntu-latest
+
+    if: ${{ inputs.releaseName }}
+
+    needs: ["generate"]
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: docs
+          path: docs
+      - run: |
+          tar -czvf docs.tar.gz docs
+      - name: Upload
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload --clobber "${{ inputs.releaseName }}" \
+            docs.tar.gz
