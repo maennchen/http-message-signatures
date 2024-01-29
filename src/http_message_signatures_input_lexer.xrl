@@ -1,4 +1,3 @@
-%% TODO: How to hide from ExDoc?
 %% @private
 
 Definitions.
@@ -20,10 +19,6 @@ Rules.
 {WS}      : skip_token.
 
 Erlang code.
-
-%%
-%% @hidden
-%% 
 
 remove_quotes(String) ->
     lists:sublist(String, 2, length(String) - 2).

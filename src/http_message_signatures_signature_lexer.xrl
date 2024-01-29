@@ -1,4 +1,3 @@
-%% TODO: How to hide from ExDoc?
 %% @private
 
 Definitions.
