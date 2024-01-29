@@ -25,7 +25,7 @@ jobs:
         with:
           version-file: .tool-versions
           version-type: strict
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: _build
           key: hex_publish-build-${{ runner.os }}-${{ steps.setupBEAM.outputs.otp-version }}-${{ hashFiles('rebar.lock') }}
@@ -48,7 +48,7 @@ jobs:
         with:
           version-file: .tool-versions
           version-type: strict
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: _build
           key: hex_build-build-${{ runner.os }}-${{ steps.setupBEAM.outputs.otp-version }}-${{ hashFiles('rebar.lock') }}
