@@ -79,6 +79,8 @@ all() ->
 % B.2.1. Minimal Signature Using rsa-pss-sha512
 %
 
+-define(B21_Components, []).
+
 -define(B21_Input,
     <<"sig-b21=();created=1618884473;keyid=\"test-key-rsa-pss\"",
         ";nonce=\"b3k2pp5k7z-50gnwp.yemd\"">>
@@ -111,7 +113,7 @@ all() ->
 
 b21_sign(_) ->
     #{headers := SignedHeaders} = http_message_signatures:sign(?Response, #{
-        components => [],
+        components => ?B21_Components,
         key => <<"sig-b21">>,
         keyid => <<"test-key-rsa-pss">>,
         nonce => <<"b3k2pp5k7z-50gnwp.yemd">>,
@@ -156,11 +158,12 @@ b21_verify(_) ->
 
     ?assertMatch(
         {ok, #{
-            <<"sig-b21">> := [
-                {created, {{2021, 4, 20}, {2, 7, 53}}},
-                {keyid, <<"test-key-rsa-pss">>},
-                {nonce, <<"b3k2pp5k7z-50gnwp.yemd">>}
-            ]
+            <<"sig-b21">> :=
+                {?B21_Components, [
+                    {created, {{2021, 4, 20}, {2, 7, 53}}},
+                    {keyid, <<"test-key-rsa-pss">>},
+                    {nonce, <<"b3k2pp5k7z-50gnwp.yemd">>}
+                ]}
         }},
         Result
     ),
@@ -170,6 +173,8 @@ b21_verify(_) ->
 %
 % B.2.2. Selective Covered Components using rsa-pss-sha512
 %
+
+-define(B22_Components, [authority, <<"content-digest">>, {query_param, <<"Pet">>}]).
 
 -define(B22_Input,
     <<"sig-b22=(\"@authority\" \"content-digest\" ", "\"@query-param\";name=\"Pet\")",
@@ -208,7 +213,7 @@ b21_verify(_) ->
 
 b22_sign(_) ->
     #{headers := SignedHeaders} = http_message_signatures:sign(?Request, #{
-        components => [authority, <<"content-digest">>, {query_param, <<"Pet">>}],
+        components => ?B22_Components,
         key => <<"sig-b22">>,
         keyid => <<"test-key-rsa-pss">>,
         tag => <<"header-example">>,
@@ -253,11 +258,12 @@ b22_verify(_) ->
 
     ?assertMatch(
         {ok, #{
-            <<"sig-b22">> := [
-                {created, {{2021, 4, 20}, {2, 7, 53}}},
-                {keyid, <<"test-key-rsa-pss">>},
-                {tag, <<"header-example">>}
-            ]
+            <<"sig-b22">> :=
+                {?B22_Components, [
+                    {created, {{2021, 4, 20}, {2, 7, 53}}},
+                    {keyid, <<"test-key-rsa-pss">>},
+                    {tag, <<"header-example">>}
+                ]}
         }},
         Result
     ),
@@ -267,6 +273,17 @@ b22_verify(_) ->
 %
 % B.2.3. Full Coverage using rsa-pss-sha512
 %
+
+-define(B23_Components, [
+    <<"date">>,
+    method,
+    path,
+    query,
+    authority,
+    <<"content-type">>,
+    <<"content-digest">>,
+    <<"content-length">>
+]).
 
 -define(B23_Input,
     <<"sig-b23=(\"date\" \"@method\" \"@path\" \"@query\" ",
@@ -307,16 +324,7 @@ b22_verify(_) ->
 
 b23_sign(_) ->
     #{headers := SignedHeaders} = http_message_signatures:sign(?Request, #{
-        components => [
-            <<"date">>,
-            method,
-            path,
-            query,
-            authority,
-            <<"content-type">>,
-            <<"content-digest">>,
-            <<"content-length">>
-        ],
+        components => ?B23_Components,
         key => <<"sig-b23">>,
         keyid => <<"test-key-rsa-pss">>,
         signer => fun(Data) ->
@@ -360,10 +368,11 @@ b23_verify(_) ->
 
     ?assertMatch(
         {ok, #{
-            <<"sig-b23">> := [
-                {created, {{2021, 4, 20}, {2, 7, 53}}},
-                {keyid, <<"test-key-rsa-pss">>}
-            ]
+            <<"sig-b23">> :=
+                {?B23_Components, [
+                    {created, {{2021, 4, 20}, {2, 7, 53}}},
+                    {keyid, <<"test-key-rsa-pss">>}
+                ]}
         }},
         Result
     ),
@@ -373,6 +382,8 @@ b23_verify(_) ->
 %
 % B.2.4. Signing a Response using ecdsa-p256-sha256
 %
+
+-define(B24_Components, [status, <<"content-type">>, <<"content-digest">>, <<"content-length">>]).
 
 -define(B24_Input,
     <<"sig-b24=(\"@status\" \"content-type\" \"content-digest\" ",
@@ -401,7 +412,7 @@ b23_verify(_) ->
 
 b24_sign(_) ->
     #{headers := SignedHeaders} = http_message_signatures:sign(?Response, #{
-        components => [status, <<"content-type">>, <<"content-digest">>, <<"content-length">>],
+        components => ?B24_Components,
         key => <<"sig-b24">>,
         keyid => <<"test-key-ecc-p256">>,
         signer => fun(Data) ->
@@ -439,10 +450,11 @@ b24_verify(_) ->
 
     ?assertMatch(
         {ok, #{
-            <<"sig-b24">> := [
-                {created, {{2021, 4, 20}, {2, 7, 53}}},
-                {keyid, <<"test-key-ecc-p256">>}
-            ]
+            <<"sig-b24">> :=
+                {?B24_Components, [
+                    {created, {{2021, 4, 20}, {2, 7, 53}}},
+                    {keyid, <<"test-key-ecc-p256">>}
+                ]}
         }},
         Result
     ),
@@ -452,6 +464,8 @@ b24_verify(_) ->
 %
 % B.2.5. Signing a Request using hmac-sha256
 %
+
+-define(B25_Components, [<<"date">>, authority, <<"content-type">>]).
 
 -define(B25_Input,
     <<"sig-b25=(\"date\" \"@authority\" \"content-type\")",
@@ -471,7 +485,7 @@ b24_verify(_) ->
 
 b25_sign(_) ->
     #{headers := SignedHeaders} = http_message_signatures:sign(?Request, #{
-        components => [<<"date">>, authority, <<"content-type">>],
+        components => ?B25_Components,
         key => <<"sig-b25">>,
         keyid => <<"test-shared-secret">>,
         signer => fun(Data) ->
@@ -511,10 +525,11 @@ b25_verify(_) ->
 
     ?assertMatch(
         {ok, #{
-            <<"sig-b25">> := [
-                {created, {{2021, 4, 20}, {2, 7, 53}}},
-                {keyid, <<"test-shared-secret">>}
-            ]
+            <<"sig-b25">> :=
+                {?B25_Components, [
+                    {created, {{2021, 4, 20}, {2, 7, 53}}},
+                    {keyid, <<"test-shared-secret">>}
+                ]}
         }},
         Result
     ),
@@ -524,6 +539,10 @@ b25_verify(_) ->
 %
 % B.2.6. Signing a Request using ed25519
 %
+
+-define(B26_Components, [
+    <<"date">>, method, path, authority, <<"content-type">>, <<"content-length">>
+]).
 
 -define(B26_Input,
     <<"sig-b26=(\"date\" \"@method\" \"@path\" \"@authority\" ",
@@ -552,9 +571,7 @@ b25_verify(_) ->
 
 b26_sign(_) ->
     #{headers := SignedHeaders} = http_message_signatures:sign(?Request, #{
-        components => [
-            <<"date">>, method, path, authority, <<"content-type">>, <<"content-length">>
-        ],
+        components => ?B26_Components,
         key => <<"sig-b26">>,
         keyid => <<"test-key-ed25519">>,
         signer => fun(Data) ->
@@ -594,10 +611,11 @@ b26_verify(_) ->
 
     ?assertMatch(
         {ok, #{
-            <<"sig-b26">> := [
-                {created, {{2021, 4, 20}, {2, 7, 53}}},
-                {keyid, <<"test-key-ed25519">>}
-            ]
+            <<"sig-b26">> :=
+                {?B26_Components, [
+                    {created, {{2021, 4, 20}, {2, 7, 53}}},
+                    {keyid, <<"test-key-ed25519">>}
+                ]}
         }},
         Result
     ),
