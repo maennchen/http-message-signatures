@@ -4,15 +4,19 @@
 %% RFC draft-ietf-httpbis-message-signatures-19 - [https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures]
 %%
 %% @end
-%% @since 1.0.0
 %%%-------------------------------------------------------------------
+%% @since 1.0.0
 
 -module(http_message_signatures).
 
 -feature(maybe_expr, enable).
 
+-include_lib("jose/include/jose_jws.hrl").
+
 -export([sign/2]).
+-export([sign_jws/3]).
 -export([verify/2]).
+-export([verify_jws/2]).
 
 -export_type([body/0]).
 -export_type([component/0]).
@@ -24,6 +28,7 @@
 -export_type([response/0]).
 -export_type([signer/0]).
 -export_type([sign_options/0]).
+-export_type([sign_jws_options/0]).
 -export_type([status/0]).
 -export_type([url/0]).
 -export_type([verifier/0]).
@@ -67,6 +72,17 @@
     | binary().
 -type signer() :: fun((Data :: iolist() | binary()) -> binary()).
 
+-type sign_base_options() :: #{
+    expires => calendar:datetime(),
+    created => calendar:datetime(),
+    nonce => binary(),
+    alg => binary(),
+    keyid := binary(),
+    tag => binary(),
+    components => [component()],
+    key => binary()
+}.
+
 -type sign_options() :: #{
     expires => calendar:datetime(),
     created => calendar:datetime(),
@@ -77,6 +93,16 @@
     components => [component()],
     key => binary(),
     signer := signer()
+}.
+
+-type sign_jws_options() :: #{
+    expires => calendar:datetime(),
+    created => calendar:datetime(),
+    nonce => binary(),
+    keyid := binary(),
+    tag => binary(),
+    components => [component()],
+    key => binary()
 }.
 
 -type verifier(Reason) :: fun(
@@ -130,8 +156,50 @@
     Message :: request() | response(),
     Options :: sign_options().
 sign(Message, Options) ->
-    Signer = maps:get(signer, Options),
+    {Signer, BaseOptions} = maps:take(signer, Options),
 
+    sign_base(Message, BaseOptions, fun(Data) ->
+        base64:encode(iolist_to_binary(Signer(Data)))
+    end).
+
+%% @doc Sign a HTTP request / response using JOSE JWS
+%%
+%% <h2>Example</h2>
+%%
+%% ```
+%% Request = #{
+%%   method => get,
+%%   url => <<"https://example.com/path?queryString">>,
+%%   headers => [{"content-type", "text/plain"}]
+%% },
+%%
+%% SignedRequest = http_message_signatures:sign_jws(
+%%   Request,
+%%   jose_jwk:from_pem_file("path-to-priv.pem"),
+%%   #{
+%%     components => [method, path, <<"content-type">>],
+%%     key => <<"sig1">>
+%%   }
+%% ).
+%% '''
+%% @end
+%% @since 1.0.0
+-spec sign_jws(Message, Jwk, Options) -> Message when
+    Message :: request() | response(),
+    Jwk :: jose_jwk:key(),
+    Options :: sign_jws_options().
+sign_jws(Message, Jwk, Options) ->
+    sign_base(Message, Options, fun(Data) ->
+        Signed = jose_jwk:sign(iolist_to_binary(Data), Jwk),
+        {_Header, Signature} = jose_jws:compact(Signed),
+        Signature
+    end).
+
+-spec sign_base(Message, Options, SignatureCallback) -> Message when
+    Message :: request() | response(),
+    Options :: sign_base_options(),
+    SignatureCallback :: fun((Data :: iodata() | binary()) -> iodata() | binary()).
+sign_base(Message, Options, SignatureCallback) ->
     DefaultComponents =
         case maps:is_key(status, Message) of
             true -> [status, <<"content-type">>, <<"digest">>];
@@ -152,15 +220,14 @@ sign(Message, Options) ->
     SignatureInput = build_signature_input(Components, SignatureParams),
     SignatureData = build_signature_data(Message, Components, SignatureInput),
 
-    Signature = Signer(SignatureData),
-    SignatureEncoded = base64:encode(iolist_to_binary(Signature)),
+    Signature = SignatureCallback(SignatureData),
 
     OriginalHeaders = maps:get(headers, Message, []),
 
     maps:put(
         headers,
         [
-            {<<"Signature">>, [Key, "=:", SignatureEncoded, ":"]},
+            {<<"Signature">>, [Key, "=:", Signature, ":"]},
             {<<"Signature-Input">>, [Key, "=", SignatureInput]}
             | OriginalHeaders
         ],
@@ -316,7 +383,7 @@ uri_target(Uri) ->
 %%   %% Get the signed request from somewhere
 %% },
 %%
-%% {ok, #{<<"sig1">> := Parameters} = http_message_signatures:verify(
+%% {ok, #{<<"sig1">> := {Components, Parameters}} = http_message_signatures:verify(
 %%   SignedRequest,
 %%   #{
 %%     verifier => fun(Data, Signature, SignatureParameters) ->
@@ -334,16 +401,68 @@ uri_target(Uri) ->
     Message :: request() | response(),
     Options :: verify_options(VerifierErrorReason),
     Reason :: VerifierErrorReason | verify_error_reason(),
-    SignatureParameters :: #{KeyId := parameters()},
+    SignatureParameters :: #{KeyId := {[component()], parameters()}},
     KeyId :: binary().
 verify(Message, Options) ->
+    Verifier = maps:get(verifier, Options),
+    verify_base(Message, fun(Data, RawSignature, Parameters) ->
+        Signature = base64:decode(RawSignature),
+        Verifier(Data, Signature, Parameters)
+    end).
+
+%% @doc Verify HTTP request / response signatures using JOSE JWS
+%%
+%% <h2>Example</h2>
+%%
+%% ```
+%% SignedRequest = #{
+%%   %% Get the signed request from somewhere
+%% },
+%%
+%% {ok, #{<<"sig1">> := {Components, Parameters}} = http_message_signatures:verify_jws(
+%%   SignedRequest,
+%%   jose_jwk:from_pem_file("path-to-pub.pem")
+%% ).
+%% '''
+%% @end
+%% @since 1.0.0
+-spec verify_jws(Message, Jwk) -> {ok, SignatureParameters} | {error, Reason} when
+    Message :: request() | response(),
+    Jwk :: jose_jwk:key(),
+    Reason :: signature_input_mismatch | invalid_signature | none_alg_used | verify_error_reason(),
+    SignatureParameters :: #{KeyId := {[component()], parameters()}},
+    KeyId :: binary().
+verify_jws(Message, Jwk) ->
+    verify_base(Message, fun(Data, RawSignature, _Parameters) ->
+        DataBinary = iolist_to_binary(Data),
+        case jose_jwk:verify(RawSignature, Jwk) of
+            {true, _Data, #jose_jws{alg = {jose_jws_alg_none, none}}} ->
+                {error, none_alg_used};
+            {true, SignedData, _Jws} when SignedData =/= DataBinary ->
+                {error, signature_input_mismatch};
+            {false, _Data, _Jws} ->
+                {error, invalid_signature};
+            {true, _Data, _Jws} ->
+                ok
+        end
+    end).
+
+-spec verify_base(Message, VerifyCallback) ->
+    {ok, SignatureParameters} | {error, Reason}
+when
+    Message :: request() | response(),
+    Reason :: VerifierErrorReason | verify_error_reason(),
+    SignatureParameters :: #{KeyId := parameters()},
+    KeyId :: binary(),
+    VerifyCallback :: verifier(VerifierErrorReason).
+verify_base(Message, VerifyCallback) ->
     Headers = maps:get(headers, Message, []),
     Signatures = extract_keyid(find_headers(<<"signature">>, Headers)),
     SignatureInputs = extract_keyid(find_headers(<<"signature-input">>, Headers)),
 
     Zipped = zip_headers(Signatures, SignatureInputs),
 
-    verify_signatures(Zipped, Message, Options, #{}).
+    verify_signatures(Zipped, Message, VerifyCallback, #{}).
 
 -spec extract_keyid(Headers) -> Out when
     Headers :: [header_value()],
@@ -376,7 +495,9 @@ zip_headers(HeadersA, HeadersB) ->
         UniqueKeys
     ).
 
--spec verify_signatures(Signatures, Message, Options, Acc) -> {ok, Acc} | {error, Reason} when
+-spec verify_signatures(Signatures, Message, VerifyCallback, Acc) ->
+    {ok, Acc} | {error, Reason}
+when
     Signatures :: [{KeyId, Signature, SignatureInput}],
     KeyId :: binary(),
     Signature :: binary(),
@@ -385,31 +506,31 @@ zip_headers(HeadersA, HeadersB) ->
         parameters := parameters()
     },
     Message :: request() | response(),
-    Options :: verify_options(VerifierErrorReason),
     Reason :: VerifierErrorReason | verify_error_reason(),
-    Acc :: #{KeyId := parameters()}.
-verify_signatures([], _Message, _Options, Acc) ->
+    Acc :: #{KeyId := parameters()},
+    VerifyCallback :: verifier(VerifierErrorReason).
+verify_signatures([], _Message, _VerifyCallback, Acc) ->
     {ok, Acc};
 verify_signatures(
     [{KeyId, SignatureBin, SignatureInputBin} | Rest],
     Message,
-    Options,
+    VerifyCallback,
     Acc
 ) ->
-    Verifier = maps:get(verifier, Options),
     maybe
         {ok, SignatureTokens, _} ?=
             http_message_signatures_signature_lexer:string(binary_to_list(SignatureBin)),
         {ok, SignatureInputTokens, _} ?=
             http_message_signatures_input_lexer:string(binary_to_list(SignatureInputBin)),
-        {ok, SignatureBase64} = http_message_signatures_signature_parser:parse(SignatureTokens),
-        Signature = base64:decode(SignatureBase64),
+        {ok, Signature} = http_message_signatures_signature_parser:parse(SignatureTokens),
         {ok, #{components := Components, parameters := Parameters}} = http_message_signatures_input_parser:parse(
             SignatureInputTokens
         ),
         SignatureData = build_signature_data(Message, Components, [SignatureInputBin]),
-        ok ?= Verifier(SignatureData, Signature, Parameters),
-        verify_signatures(Rest, Message, Options, maps:put(KeyId, Parameters, Acc))
+        ok ?= VerifyCallback(SignatureData, Signature, Parameters),
+        verify_signatures(
+            Rest, Message, VerifyCallback, maps:put(KeyId, {Components, Parameters}, Acc)
+        )
     else
         {error, {_Loc, http_message_signatures_signature_lexer, Reason}, _EndLoc} ->
             {error,
@@ -426,5 +547,7 @@ verify_signatures(
         {error, {_Loc, http_message_signatures_input_parser, Reason}} ->
             {error,
                 {parse_error, input, SignatureInputBin,
-                    http_message_signatures_input_parser:format_error(Reason)}}
+                    http_message_signatures_input_parser:format_error(Reason)}};
+        {error, Reason} ->
+            {error, Reason}
     end.

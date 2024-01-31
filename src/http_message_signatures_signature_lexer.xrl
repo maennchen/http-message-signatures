@@ -2,7 +2,7 @@
 
 Definitions.
 
-SIGNATURE = [A-Za-z0-9\/\+=]+
+SIGNATURE = [A-Za-z0-9\/\+=\-_\.]+
 DELIMITER = :
 
 Rules.

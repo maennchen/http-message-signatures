@@ -403,13 +403,53 @@ verify_test() ->
 
     ?assertMatch(
         {ok, #{
-            <<"sig1">> := [
+            <<"sig1">> := {[method, path, query, authority, <<"content-type">>, <<"digest">>], [
                 {created, {{2023, 4, 9}, {1, 39, 4}}},
                 {keyid, <<"test-key">>},
                 {alg, <<"hmac-sha256">>}
-            ]
+            ]}
         }},
         Result
+    ),
+
+    ok.
+
+sign_jws_test() ->
+    JwkPath = filename:join([code:priv_dir(http_message_signatures), "test", "b_1_1.jwk.json"]),
+    Jwk = jose_jwk:from_file(JwkPath),
+
+    Message = #{},
+
+    SignedMessage = http_message_signatures:sign_jws(Message, Jwk, #{
+        components => [],
+        created => {{2024, 01, 30}, {15, 43, 00}}
+    }),
+
+    ?assertMatch(
+        {ok, #{
+            <<"sig1">> :=
+                {[], [{created, {{2024, 1, 30}, {15, 43, 0}}}]}
+        }},
+        http_message_signatures:verify_jws(SignedMessage, Jwk)
+    ),
+
+    ok.
+
+verify_jws_none_test() ->
+    jose:unsecured_signing(true),
+
+    SignedMessage = #{
+        headers => [
+            {<<"Signature">>,
+                <<"sig1=:eyJhbGciOiJub25lIn0.IkBzaWduYXR1cmUtcGFyYW1zIjogKCk7Y",
+                    "3JlYXRlZD0xNzA2NjI5Mzgw.:">>},
+            {<<"Signature-Input">>, <<"sig1=();created=1706629380">>}
+        ]
+    },
+
+    ?assertMatch(
+        {error, none_alg_used},
+        http_message_signatures:verify_jws(SignedMessage, jose_jwk:generate_key(16))
     ),
 
     ok.
