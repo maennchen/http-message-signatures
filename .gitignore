@@ -24,3 +24,4 @@ rebar3.crashdump
 /src/http_message_signatures_signature_lexer.erl
 /src/http_message_signatures_signature_parser.erl
 /rebar.lock
+/conformance/test-suite

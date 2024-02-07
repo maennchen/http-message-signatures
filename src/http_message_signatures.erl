@@ -11,6 +11,7 @@
 
 -feature(maybe_expr, enable).
 
+-export([canonicalize_headers/3]).
 -export([sign/2]).
 -export([verify/2]).
 
@@ -208,10 +209,7 @@ build_parameters_string([{Key, {_Date, _Time} = Value} | Parameters], Acc) ->
         ";",
         atom_to_list(Key),
         "=",
-        integer_to_list(
-            calendar:datetime_to_gregorian_seconds(Value) -
-                calendar:datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}})
-        )
+        integer_to_list(date_to_integer(Value))
     ]).
 
 -spec build_signature_data(Message, Components, SignatureInput) -> Out when
@@ -428,3 +426,54 @@ verify_signatures(
                 {parse_error, input, SignatureInputBin,
                     http_message_signatures_input_parser:format_error(Reason)}}
     end.
+
+%% @hidden
+-spec canonicalize_headers(Message, RequestedHeaders, Options) ->
+    {ok, Message} | {error, header_missing}
+when
+    Message :: request() | response(), RequestedHeaders :: [binary()], Options :: #{created => calendar:datetime(), expires => calendar:datetime()}.
+canonicalize_headers(_Message, [], _Options) ->
+    {ok, []};
+canonicalize_headers(Message, RequestedHeaders, Options) ->
+    NormalizedHeaders = lists:map(
+        fun({Field, Value}) -> {string:lowercase(iolist_to_binary(Field)), Value} end,
+        maps:get(headers, Message, [])
+    ),
+
+    CanonicalizedHeaders = lists:flatmap(
+        fun
+            (<<"(created)">> = RequestedHeader)  ->
+                [
+                    {RequestedHeader, [integer_to_list(date_to_integer(maps:get(created, Options, calendar:local_time())))]}
+                ];
+            (<<"(expires)">> = RequestedHeader)  ->
+                [
+                    {RequestedHeader, [integer_to_list(date_to_integer(maps:get(expires, Options, calendar:local_time())))]}
+                ];
+
+            (<<"(request-target)">> = RequestedHeader) ->
+                [
+                    {RequestedHeader, [
+                        atom_to_list(maps:get(method, Message)), " ", maps:get(url, Message)
+                    ]}
+                ];
+            (RequestedHeader) ->
+                LowercaseRequestedHeader = string:lowercase(RequestedHeader),
+
+                case proplists:lookup_all(LowercaseRequestedHeader, NormalizedHeaders) of
+                    [] -> [{error, header_missing}];
+                    Headers -> Headers
+                end
+        end,
+        RequestedHeaders
+    ),
+
+    case proplists:get_value(error, CanonicalizedHeaders) of
+        undefined -> {ok, CanonicalizedHeaders};
+        Reason -> {error, Reason}
+    end.
+
+-spec date_to_integer(DateTime) -> integer() when DateTime :: calendar:datetime().
+date_to_integer(DateTime) ->
+    calendar:datetime_to_gregorian_seconds(DateTime) -
+        calendar:datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}}).
