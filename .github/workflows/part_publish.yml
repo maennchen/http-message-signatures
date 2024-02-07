@@ -32,7 +32,7 @@ jobs:
           restore-keys: |
             hex_publish-build-${{ runner.os }}-${{ steps.setupBEAM.outputs.otp-version }}-
       - run: rebar3 get-deps
-      - run: rebar3 hex publish --yes
+      - run: rebar3 hex publish -r hexpm --yes
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
 
@@ -55,11 +55,11 @@ jobs:
           restore-keys: |
             hex_build-build-${{ runner.os }}-${{ steps.setupBEAM.outputs.otp-version }}-
       - run: rebar3 get-deps
-      - run: rebar3 hex build --output package.tar
+      - run: rebar3 hex build
       - uses: actions/upload-artifact@v4
         with:
           name: package
-          path: package.tar
+          path: _build/default/lib/http_message_signatures/hex/http_message_signatures-*.tar
 
   upload:
     name: "Upload"
@@ -79,9 +79,13 @@ jobs:
         with:
           name: package
           path: .
+      - id: extract_raw_version
+        run: |
+          RAW_VERSION=$(echo "${{ inputs.releaseName }}" | sed 's/^v//')
+          echo "RAW_VERSION=$RAW_VERSION" >> $GITHUB_OUTPUT
       - name: Upload
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           gh release upload --clobber "${{ inputs.releaseName }}" \
-            package.tar
+            "http_message_signatures-${{ steps.extract_raw_version.outputs.RAW_VERSION }}.tar"
