@@ -3,12 +3,12 @@
 Implements [HTTP Message Signatures](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures-19)
 
 [![EEF Security WG project](https://img.shields.io/badge/EEF-Security-black)](https://github.com/erlef/security-wg)
-[![Main Branch](https://github.com/erlef/http-message-signatures/actions/workflows/branch_main.yml/badge.svg?branch=main)](https://github.com/erlef/http-message-signatures/actions/workflows/branch_main.yml)
+[![Main Branch](https://github.com/maennchen/http-message-signatures/actions/workflows/branch_main.yml/badge.svg?branch=main)](https://github.com/maennchen/http-message-signatures/actions/workflows/branch_main.yml)
 [![Module Version](https://img.shields.io/hexpm/v/http_message_signatures.svg)](https://hex.pm/packages/http_message_signatures)
 [![Total Download](https://img.shields.io/hexpm/dt/http_message_signatures.svg)](https://hex.pm/packages/http_message_signatures)
-[![License](https://img.shields.io/hexpm/l/http_message_signatures.svg)](https://github.com/erlef/http-message-signatures/blob/main/LICENSE)
-[![Last Updated](https://img.shields.io/github/last-commit/erlef/http-message-signatures.svg)](https://github.com/erlef/http-message-signatures/commits/master)
-[![Coverage Status](https://coveralls.io/repos/github/erlef/http-message-signatures/badge.svg?branch=main)](https://coveralls.io/github/erlef/http-message-signatures?branch=main)
+[![License](https://img.shields.io/hexpm/l/http_message_signatures.svg)](https://github.com/maennchen/http-message-signatures/blob/main/LICENSE)
+[![Last Updated](https://img.shields.io/github/last-commit/maennchen/http-message-signatures.svg)](https://github.com/maennchen/http-message-signatures/commits/master)
+[![Coverage Status](https://coveralls.io/repos/github/maennchen/http-message-signatures/badge.svg?branch=main)](https://coveralls.io/github/maennchen/http-message-signatures?branch=main)
 
 ## Usage
 

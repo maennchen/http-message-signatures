@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         - Create a discussion instead if you are looking for support:
-          https://github.com/erlef/http-message-signatures/discussions
+          https://github.com/maennchen/http-message-signatures/discussions
   - type: input
     id: version
     attributes:
