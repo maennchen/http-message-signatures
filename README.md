@@ -1,6 +1,6 @@
 # HTTP Message Signatures
 
-Implements [HTTP Message Signatures](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures-19)
+Implements [HTTP Message Signatures](https://datatracker.ietf.org/doc/html/rfc9421)
 
 [![EEF Security WG project](https://img.shields.io/badge/EEF-Security-black)](https://github.com/erlef/security-wg)
 [![Main Branch](https://github.com/maennchen/http-message-signatures/actions/workflows/branch_main.yml/badge.svg?branch=main)](https://github.com/maennchen/http-message-signatures/actions/workflows/branch_main.yml)
