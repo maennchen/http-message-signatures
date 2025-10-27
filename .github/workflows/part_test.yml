@@ -83,7 +83,7 @@ jobs:
             eunit-${{ runner.os }}-${{ steps.setupBEAM.outputs.otp-version }}-
       - run: rebar3 eunit --cover --cover_export_name "eunit-${{ steps.setupBEAM.outputs.otp-version }}"
         continue-on-error: ${{ matrix.unstable }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: eunit-coverage-${{ matrix.otp }}
           path: "_build/test/cover/eunit-${{ steps.setupBEAM.outputs.otp-version }}.coverdata"
@@ -122,7 +122,7 @@ jobs:
             ct-${{ runner.os }}-${{ steps.setupBEAM.outputs.otp-version }}-
       - run: rebar3 ct --cover --cover_export_name "ct-${{ steps.setupBEAM.outputs.otp-version }}"
         continue-on-error: ${{ matrix.unstable }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: ct-coverage-${{ matrix.otp }}
           path: _build/test/cover/ct-${{ steps.setupBEAM.outputs.otp-version }}.coverdata
@@ -156,7 +156,7 @@ jobs:
           mv --no-clobber artifacts/*/*.coverdata _build/test/cover/
           rm -rf artifacts
       - run: rebar3 as test cover
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: coverage-report
           path: _build/test/cover/
